@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "research-agent"
+version = "0.1.0"
+description = "A local CLI-driven research assistant powered by LangGraph"
+authors = []
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+langgraph = "1.1.3"
+langgraph-checkpoint-postgres = "3.0.5"
+langchain-mcp-adapters = "0.2.2"
+langchain-openai = "*"
+ddgs = "*"
+psycopg = {version = "*", extras = ["binary"]}
+python-dotenv = "*"
+mcp = {version = "*", extras = ["cli"]}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

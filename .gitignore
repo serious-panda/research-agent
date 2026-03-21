@@ -1,0 +1,23 @@
+# Dependencies
+.venv/
+
+# Environment
+.env
+
+# Reports (session-scoped, ephemeral by convention)
+reports/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+
+#cache
+.agents/
+
+.DS_Stote
