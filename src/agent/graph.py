@@ -4,8 +4,8 @@ import sys
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.postgres import PostgresSaver
 
-from src.nodes import plan, reflect, save, search, synthesize
-from src.state import ResearchState
+from src.agent.nodes import plan, reflect, save, search, synthesize
+from src.agent.state import ResearchState
 
 POSTGRES_DSN = os.getenv("POSTGRES_DSN")
 MAX_ITERATIONS = int(os.getenv("MAX_ITERATIONS", "5"))

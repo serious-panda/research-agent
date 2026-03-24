@@ -1,7 +1,7 @@
 """Smoke test for the MCP report server.
 
 Requires the MCP server to be running:
-    poetry run python src/mcp_server.py
+    poetry run python -m src.mcp.server
 
 Run with:
     poetry run python scripts/smoke_test_mcp.py
