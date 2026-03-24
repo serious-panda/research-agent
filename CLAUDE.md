@@ -21,36 +21,41 @@ A local, CLI-driven research assistant that accepts a natural language question,
 ## Structure
 
 ```
+main.py              # CLI entry point (--thread, question)
 src/
-├── main.py          # CLI entry point (--thread, question)
-├── graph.py         # StateGraph definition, nodes, edges, run_graph()
-├── nodes.py         # plan(), search(), reflect(), synthesize(), save()
-├── state.py         # ResearchState TypedDict
-├── tools.py         # DuckDuckGo wrapper + MCP client calls
-└── mcp_server.py    # Standalone MCP server (save/get/list reports)
+├── agent/
+│   ├── graph.py     # StateGraph definition, nodes, edges, run_graph()
+│   ├── nodes.py     # plan(), search(), reflect(), synthesize(), save()
+│   └── state.py     # ResearchState TypedDict
+├── mcp/
+│   └── server.py    # Standalone MCP server (save/get/list reports)
+├── rag/             # RAG pipeline (embeddings, vector store, ingestion)
+└── tools.py         # DuckDuckGo wrapper + MCP client calls
 scripts/
 └── smoke_test_mcp.py  # End-to-end smoke test for the MCP server
-plans/
+infra/
+├── docker-compose.yml  # Postgres + Qdrant
+└── .env.example        # Config template
+docs/plans/
 ├── agent-graph.md
 ├── cli-and-session.md
-└── mcp-server.md
+├── mcp-server.md
+├── restructure.md
+├── rag-pipeline.md
+└── hybrid-agent.md
 ```
 
 ## Running the stack
 
 ```bash
-# 1. Start Postgres (ephemeral — data gone on stop)
-docker run --rm \
-  -e POSTGRES_PASSWORD=<pwd> \
-  -e POSTGRES_DB=mydb \
-  -p 5432:5432 \
-  postgres:16-alpine
+# 1. Start Postgres + Qdrant
+./scripts/start_docker.sh
 
-# 2. Start MCP server
-poetry run python src/mcp_server.py
+# 2. Start MCP server (in a separate terminal)
+./scripts/start_mcp.sh
 
 # 3. Run the agent
-OPENAI_API_KEY=sk-... poetry run python src/main.py --thread "my-session" "Your question here"
+./scripts/run_agent.sh --thread "my-session" "Your question here"
 ```
 
 ## Configuration

@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 
 # Ensure project root is on sys.path when script is run directly
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent))
 
 from dotenv import load_dotenv
 
@@ -31,7 +31,7 @@ def main() -> None:
     _check_env()
 
     # Import after env is loaded so downstream modules pick up correct values
-    from src.graph import run_graph
+    from src.agent.graph import run_graph
 
     if args.thread:
         thread_id = args.thread

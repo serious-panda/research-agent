@@ -3,7 +3,7 @@ import os
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from src.state import ResearchState
+from src.agent.state import ResearchState
 from src.tools import save_report, search_web
 
 

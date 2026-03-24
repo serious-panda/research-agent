@@ -39,7 +39,7 @@ async def _mcp_tools() -> dict:
         if isinstance(cause, (ConnectError, ConnectTimeout, OSError)):
             raise RuntimeError(
                 f"MCP server unreachable at {MCP_SERVER_URL}. "
-                "Start it with: poetry run python src/mcp_server.py"
+                "Start it with: poetry run python -m src.mcp.server"
             ) from cause
         raise
 
