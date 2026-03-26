@@ -4,7 +4,7 @@ import sys
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.postgres import PostgresSaver
 
-from src.agent.nodes import plan, reflect, save, search, synthesize
+from src.agent.nodes import answer, classify, plan, reflect, save, search, synthesize
 from src.agent.state import ResearchState
 
 POSTGRES_DSN = os.getenv("POSTGRES_DSN")
@@ -18,16 +18,26 @@ def _route_reflect(state: ResearchState) -> str:
     return "synthesize"
 
 
+def _route_classify(state: ResearchState) -> str:
+    return "plan" if state["kind"] == "research" else "answer"
+
+
 def _build_compiled_graph(checkpointer: PostgresSaver):
     builder = StateGraph(ResearchState)
 
+    builder.add_node("classify", classify)
+    builder.add_node("answer", answer)
     builder.add_node("plan", plan)
     builder.add_node("search", search)
     builder.add_node("reflect", reflect)
     builder.add_node("synthesize", synthesize)
     builder.add_node("save", save)
 
-    builder.add_edge(START, "plan")
+    builder.add_edge(START, "classify")
+    builder.add_conditional_edges(
+        "classify", _route_classify, {"plan": "plan", "answer": "answer"}
+    )
+    builder.add_edge("answer", END)
     builder.add_edge("plan", "search")
     builder.add_edge("search", "reflect")
     builder.add_conditional_edges(
@@ -64,8 +74,10 @@ def run_graph(question: str, thread_id: str) -> str:
             # New thread or completed thread — start fresh
             initial: ResearchState = {
                 "question": question,
+                "kind": "research",  # overwritten by [classify]
                 "queries": [],
                 "search_results": [],
+                "kb_results": [],
                 "reflections": [],
                 "iteration": 0,
                 "final_answer": None,

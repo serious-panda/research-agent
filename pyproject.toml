@@ -16,6 +16,9 @@ ddgs = "*"
 psycopg = {version = "*", extras = ["binary"]}
 python-dotenv = "*"
 mcp = {version = "*", extras = ["cli"]}
+fastembed = ">=0.4,<1"
+qdrant-client = "^1.9"
+langchain-text-splitters = "^0.3"
 
 [build-system]
 requires = ["poetry-core"]

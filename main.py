@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import sys
 import uuid
@@ -10,6 +11,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+    stream=sys.stderr,
+)
 
 
 def _check_env() -> None:
