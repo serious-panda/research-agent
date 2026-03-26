@@ -1,22 +1,47 @@
 import asyncio
 import json
+import logging
 import os
 
 from ddgs import DDGS
 from httpx import ConnectError, ConnectTimeout
+from langchain_core.tools import tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/sse")
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
 # Web search
 # ---------------------------------------------------------------------------
 
-def search_web(query: str, max_results: int = 5) -> list[dict]:
-    """Execute a DuckDuckGo text search and return result dicts."""
+def _ddg_search(query: str, max_results: int = 5) -> list[dict]:
     with DDGS() as ddgs:
         return list(ddgs.text(query, max_results=max_results))
+
+
+@tool
+def web_search(query: str) -> list[dict]:
+    """Search the web for current events, news, or general knowledge not in the knowledge base."""
+    return _ddg_search(query, max_results=5)
+
+
+@tool
+def kb_search(query: str) -> list[dict]:
+    """Search the local knowledge base of ingested documents.
+    Use for domain-specific questions about topics covered in the knowledge base
+    (e.g. React docs, internal architecture docs)."""
+    try:
+        from src.rag.store import search_documents
+        return search_documents(query, top_k=5)
+    except Exception as exc:
+        logger.warning("kb_search failed: %s", exc)
+        return []
+
+
+SEARCH_TOOLS = [web_search, kb_search]
 
 
 # ---------------------------------------------------------------------------
