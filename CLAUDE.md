@@ -1,114 +1,77 @@
-# CLAUDE.md
+# CLAUDE.md — Repo Root
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file covers repo-wide conventions. Each app and package has its own `CLAUDE.md` with service-specific detail.
 
-## Project
+## What this repo is
 
-A local, CLI-driven research assistant that accepts a natural language question, classifies it, and either responds directly (conversational) or autonomously plans and executes a multi-step hybrid search loop (web + local knowledge base), reflects on gaps, and produces a cited answer.
+A monorepo for a web-based AI research assistant. A user types a question; the agent classifies it, plans searches, runs web and knowledge-base queries in a loop, reflects on gaps, synthesises a cited answer, and streams live progress back to the browser over SSE.
 
-## Stack
-
-| Component | Technology |
-|---|---|
-| Agent runtime | LangGraph 1.1.x `StateGraph` |
-| LLM | OpenAI GPT-4o (`langchain-openai`) |
-| Web search | DuckDuckGo (`ddgs`) |
-| KB search | Qdrant vector store via `qdrant-client` |
-| Embeddings | `fastembed` + `BAAI/bge-small-en-v1.5` (local, 384 dims) |
-| Checkpointer | LangGraph Postgres checkpointer (`langgraph-checkpoint-postgres`) |
-| State database | PostgreSQL 16 (Docker, ephemeral) |
-| Report storage | MCP filesystem server (`mcp[cli]`, HTTP/SSE on `localhost:8000`) |
-| Dependency manager | Poetry |
-
-## Structure
+## Monorepo layout
 
 ```
-main.py              # CLI entry point (--thread, question); configures logging
-src/
-├── agent/
-│   ├── graph.py     # StateGraph definition, nodes, edges, run_graph()
-│   ├── nodes.py     # classify, answer, plan, search, reflect, synthesize, save
-│   └── state.py     # ResearchState TypedDict
-├── mcp/
-│   └── server.py    # Standalone MCP server (save/get/list reports)
-├── rag/
-│   ├── embeddings.py  # fastembed singleton loader
-│   ├── ingest.py      # ingest_react_docs() — walk repo, chunk, upsert with metadata
-│   └── store.py       # upsert_documents(), search_documents() against Qdrant
-└── tools.py           # web_search + kb_search @tools, SEARCH_TOOLS list, MCP client
-scripts/
-├── ingest_docs.py     # CLI: ingest docs into Qdrant (--source, --version, repo_root)
-└── smoke_test_mcp.py  # End-to-end smoke test for the MCP server
-infra/
-├── docker-compose.yml  # Postgres + Qdrant
-└── .env.example        # Config template
-docs/plans/
-├── agent-graph.md
-├── cli-and-session.md
-├── mcp-server.md
-├── restructure.md
-├── rag-pipeline.md
-└── hybrid-agent.md
+apps/
+├── agent-api/       Python — FastAPI + LangGraph agent, SSE streaming (port 8001)
+├── mcp-server/      Python — MCP report storage service (port 8000)
+├── consumer-web/    TypeScript — Vite + React consumer UI (port 3000 / dev :5173)
+└── backoffice/      TypeScript — Vite + React admin stub (port 3001)
+packages/
+└── rag/             Python — shared embeddings + Qdrant store + doc ingestion
+docker-compose.yml   Full-stack wiring (postgres :5432, qdrant :6333, + all apps)
+.env.example         Single env file for both demo and work mode
 ```
 
-## Graph topology
+## Service integration map
 
 ```
-START → [classify] ──conversational──→ [answer] → END
-              │
-           research
-              ↓
-         [plan] → [search] → [reflect] ──sufficient──→ [synthesize] → [save] → END
-                      ↑____________insufficient + iterations < MAX_ITERATIONS
+browser
+  │  POST /api/research  (SSE stream)
+  │  GET  /api/reports
+  ▼
+consumer-web (nginx) ──proxy /api/──► agent-api :8001
+                                          │
+                          ┌───────────────┼──────────────────┐
+                          ▼               ▼                  ▼
+                     postgres:5432   qdrant:6333       mcp-server:8000
+                    (checkpoints)   (KB vectors)       (report storage)
+                                         ▲
+                                    packages/rag
+                                  (shared library)
 ```
 
-- `classify` routes on `state["kind"]`: `"research"` → `plan`, `"conversational"` → `answer`
-- `search` calls `llm.bind_tools(SEARCH_TOOLS)` — LLM decides which of `web_search`/`kb_search` to call
-- `synthesize` renders separate web and KB result blocks; cites as `[N]` and `[KB-N]`
+- **agent-api** is the only service that talks to postgres, qdrant, and mcp-server
+- **consumer-web** talks only to agent-api (same-origin, proxied)
+- **packages/rag** is a path dependency of agent-api — never imported by other apps directly
+- **mcp-server** is stateful per-session (in-memory registry + disk files); agent-api restarts do not destroy reports
+
+## Environment
+
+One `.env` file at the repo root works for both modes:
+
+- **Demo mode** (`docker compose up`) — compose injects Docker hostnames for inter-service URLs; `.env` values for `POSTGRES_DSN`/`QDRANT_URL`/`MCP_SERVER_URL` are ignored by compose
+- **Work mode** — services run on localhost; `.env` values for those vars are used directly
+
+Required: `OPENAI_API_KEY`, `POSTGRES_PASSWORD`
 
 ## Running the stack
 
 ```bash
-# 1. Start Postgres + Qdrant
-./scripts/start_docker.sh
+# Demo (all services in Docker)
+docker compose up --build
 
-# 2. Start MCP server (in a separate terminal)
-./scripts/start_mcp.sh
-
-# 3. Run the agent
-./scripts/run_agent.sh --thread "my-session" "Your question here"
+# Work mode (hot-reload, see each service's CLAUDE.md for per-service commands)
+docker compose up postgres qdrant
 ```
 
-## Ingesting docs
+## Key cross-cutting conventions
 
-```bash
-poetry run python scripts/ingest_docs.py --source react_docs --version 19 ~/path/to/react.dev
-```
+- **Python services**: Poetry, Python 3.12, `pyproject.toml` per service
+- **Frontend apps**: npm, Node 20, `package.json` per app, Vite 5 + React 18 + TypeScript
+- **No shared TypeScript packages** — consumer-web and backoffice are independent
+- **`packages/rag` is the only shared Python library** — added as `{ path = "../../packages/rag", develop = true }` in agent-api's `pyproject.toml`
+- **SSE event format** is the contract between agent-api and consumer-web — see `apps/agent-api/CLAUDE.md` for the schema
 
-Walks the repo for `.md`/`.mdx` files. Each chunk stored with metadata: `source_type`, `version`, `path`, `title`, `section`, `chunk_index`. Collection name: `docs` (generic — other doc sets can be added with a different `source_type`).
+## What not to do
 
-## Configuration
-
-All config via `.env` or environment variables:
-
-| Variable | Default | Description |
-|---|---|---|
-| `OPENAI_API_KEY` | — | Required |
-| `POSTGRES_DSN` | `postgresql://<user>:<pwd>@localhost:5432/mydb` | Checkpointer connection |
-| `MCP_SERVER_URL` | `http://localhost:8000/sse` | MCP server SSE endpoint |
-| `QDRANT_URL` | `http://localhost:6333` | Qdrant endpoint |
-| `QDRANT_COLLECTION` | `docs` | Vector store collection name |
-| `MAX_ITERATIONS` | `5` | Max reflect→search loops before forced synthesis |
-| `OPENAI_MODEL` | `gpt-4o` | Model for all reasoning nodes |
-| `LOG_LEVEL` | `INFO` | Logging level; set to `DEBUG` for third-party lib traces |
-
-## Session resumption
-
-Passing the same `--thread` ID while Postgres is still running resumes from the last checkpoint. Omitting `--thread` auto-generates a UUID and prints it to stderr so it can be reused.
-
-## Smoke test
-
-```bash
-# With MCP server running:
-poetry run python scripts/smoke_test_mcp.py
-```
+- Do not add cross-app Python imports — each app is self-contained except for `packages/rag`
+- Do not hardcode URLs in frontend source — all API calls go to `/api/` (same-origin proxy)
+- Do not run `git add -A` — `qdrant_storage/`, `reports/`, `.venv/`, `node_modules/` are gitignored but present on disk
