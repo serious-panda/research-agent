@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "mcp-server"
+version = "0.1.0"
+description = "MCP report storage service"
+authors = []
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+mcp = { version = "*", extras = ["cli"] }
+uvicorn = { version = "*", extras = ["standard"] }
+python-dotenv = "*"
+langchain-mcp-adapters = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

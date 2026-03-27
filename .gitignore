@@ -1,5 +1,7 @@
 # Dependencies
 .venv/
+**/node_modules/
+**/dist/
 
 # Environment
 .env

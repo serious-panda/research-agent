@@ -1,6 +1,6 @@
 # Plan 07: Backoffice Stub + Work Mode Validation
 
-> Source PRD: `docs/prd-monorepo-web.md`
+> Source PRD: `docs/milestones/web-interface/prd-monorepo-web.md`
 
 ## Context
 

@@ -1,126 +1,105 @@
 # research-agent
 
-A local, CLI-driven research assistant. Give it a question — it classifies it, plans searches, runs them via DuckDuckGo and/or a local knowledge base, reflects on gaps, loops until satisfied, then produces a cited answer and saves it as a report.
+A web-based AI research assistant. Ask a question — the agent classifies it, plans web and knowledge-base searches, reflects on gaps, loops until satisfied, then streams a cited answer live to the browser.
 
 ## How it works
 
 ```
-question → [classify] ──conversational──→ [answer] → response
-                 │
-              research
-                 ↓
-           [plan] → [search] → [reflect] → [search] → ... → [synthesize] → [save] → answer
+browser → POST /api/research (SSE stream)
+               │
+         agent-api (FastAPI + LangGraph)
+               │
+    ┌──────────┼──────────────┐
+    ▼          ▼              ▼
+postgres    qdrant        mcp-server
+(sessions) (KB vectors) (report files)
+               ▲
+          packages/rag
 ```
 
-- **classify** — LLM decides if the input is a research question or conversational (small talk, greetings). Conversational input is answered directly without any search.
-- **plan** — LLM decomposes the question into 3–5 search queries
-- **search** — LLM picks `web_search`, `kb_search`, or both based on the query; falls back to web search if no tool is called
-- **reflect** — LLM evaluates results, identifies gaps, decides whether to search more or synthesize
-- **synthesize** — LLM writes a cited answer; web results cited as `[N]`, KB results as `[KB-N]`
-- **save** — persists the report via the MCP server
+### Agent graph
 
-State is checkpointed to Postgres after every node, so interrupted sessions can be resumed.
+```
+[classify] ──conversational──► [answer] ──────────────────────► END
+    │
+  research
+    ▼
+[plan] ──► [search] ──► [reflect] ──sufficient──► [synthesize] ──► [save] ──► END
+               ▲____________insufficient + iterations < MAX
+```
 
-## Knowledge base (RAG)
+Each graph node emits an SSE event (`node_start` / `node_done`) that the browser renders as a live progress row. The final `done` event carries the answer and source URLs.
 
-The agent can search a local vector store (Qdrant) in addition to the web. Currently the React docs are supported as a KB source.
+## Services
+
+| Service | Stack | Port | Role |
+|---|---|---|---|
+| `agent-api` | FastAPI + LangGraph | 8001 | Runs the agent, streams SSE, proxies reports |
+| `mcp-server` | FastMCP + Starlette | 8000 | Persists research reports (JSON files) |
+| `consumer-web` | Vite + React | 3000 | User-facing research UI |
+| `backoffice` | Vite + React | 3001 | Admin UI (stub) |
+| `postgres` | PostgreSQL 16 | 5432 | LangGraph checkpoint storage |
+| `qdrant` | Qdrant | 6333 | Vector store for knowledge base |
+
+## Quick start (demo mode)
 
 ```bash
-# Start Qdrant
-docker compose -f infra/docker-compose.yml up -d qdrant
+git clone <repo> && cd research-agent
+cp .env.example .env          # fill in OPENAI_API_KEY and POSTGRES_PASSWORD
+docker compose up --build
+open http://localhost:3000
+```
 
-# Ingest React docs from a local clone of react.dev
+## Work mode (hot-reload)
+
+Run each service natively so file edits apply immediately.
+
+```bash
+# Terminal 1 — databases
+docker compose up postgres qdrant
+
+# Terminal 2 — MCP server
+cd apps/mcp-server && poetry install
+poetry run python -m src.server
+
+# Terminal 3 — agent API (uvicorn --reload)
+cd apps/agent-api && poetry install
+poetry run uvicorn main:app --port 8001 --reload
+
+# Terminal 4 — consumer web (Vite HMR)
+cd apps/consumer-web && npm install
+npm run dev   # http://localhost:5173
+```
+
+## Knowledge base
+
+Ingest documentation into Qdrant so the agent can search it alongside the web:
+
+```bash
+cd packages/rag && poetry install
 poetry run python scripts/ingest_docs.py --source react_docs --version 19 ~/path/to/react.dev
 ```
 
-Once ingested, the agent automatically queries the KB for domain-specific questions (e.g. "how does useMemo work?") and the web for everything else.
+Once ingested, the agent automatically queries the KB for domain-specific questions (e.g. React APIs) and the web for everything else. Citations appear as `[KB-N]` in answers.
 
-## Prerequisites
-
-- Python 3.12
-- [Poetry](https://python-poetry.org/)
-- Docker (for Postgres + Qdrant)
-- OpenAI API key
-
-## Setup
-
-```bash
-git clone <repo>
-cd research-agent
-poetry install
-cp infra/.env.example .env   # add your OPENAI_API_KEY
-```
-
-`.env` variables:
+## Configuration
 
 | Variable | Default | Description |
 |---|---|---|
-| `OPENAI_API_KEY` | — | Required |
-| `POSTGRES_DSN` | `postgresql://<user>:<pwd>@localhost:5432/mydb` | Checkpointer connection |
-| `MCP_SERVER_URL` | `http://localhost:8000/sse` | MCP server endpoint |
-| `QDRANT_URL` | `http://localhost:6333` | Qdrant vector store endpoint |
-| `QDRANT_COLLECTION` | `docs` | Collection name |
-| `MAX_ITERATIONS` | `5` | Max search loops before forced synthesis |
-| `OPENAI_MODEL` | `gpt-4o` | Model used for all reasoning nodes |
-| `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG` for full traces) |
+| `OPENAI_API_KEY` | — | **Required** |
+| `POSTGRES_PASSWORD` | — | **Required** |
+| `POSTGRES_USER` | `research` | Postgres user |
+| `POSTGRES_DB` | `research` | Postgres database |
+| `POSTGRES_DSN` | `postgresql://research:…@localhost:5432/research` | Work mode connection |
+| `QDRANT_URL` | `http://localhost:6333` | Qdrant endpoint |
+| `MCP_SERVER_URL` | `http://localhost:8000/sse` | MCP server SSE endpoint |
+| `OPENAI_MODEL` | `gpt-4o` | LLM model |
+| `MAX_ITERATIONS` | `5` | Max search→reflect loops |
+| `LOG_LEVEL` | `INFO` | `DEBUG` for full LangGraph traces |
 
-## Running
-
-```bash
-# 1. Start Postgres + Qdrant
-./scripts/start_docker.sh
-
-# 2. Start MCP report server
-./scripts/start_mcp.sh
-
-# 3. Run the agent
-./scripts/run_agent.sh --thread "my-session" "What are recent advances in fusion energy?"
-```
-
-The final answer is printed to stdout. Status and trace logs go to stderr.
-
-## Session resumption
-
-Each run is scoped to a `--thread` ID backed by the Postgres checkpointer. If a run is interrupted, re-running with the same `--thread` resumes from the last saved node.
+## MCP smoke test
 
 ```bash
-# Start a session
-./scripts/run_agent.sh --thread "fusion-q1" "What are recent advances in fusion energy?"
-
-# Resume it (while Postgres is still running)
-./scripts/run_agent.sh --thread "fusion-q1" "What are recent advances in fusion energy?"
-```
-
-Omit `--thread` to auto-generate an ID — it is printed to stderr so you can note it for later resumption.
-
-## Project structure
-
-```
-main.py              # CLI entry point (--thread, question)
-src/
-├── agent/
-│   ├── graph.py     # StateGraph definition, nodes, edges, run_graph()
-│   ├── nodes.py     # classify, answer, plan, search, reflect, synthesize, save
-│   └── state.py     # ResearchState TypedDict
-├── mcp/
-│   └── server.py    # MCP server exposing save/get/list report tools
-├── rag/
-│   ├── embeddings.py  # fastembed singleton (BAAI/bge-small-en-v1.5)
-│   ├── ingest.py      # ingest_react_docs() — chunk + embed + upsert
-│   └── store.py       # upsert_documents(), search_documents()
-└── tools.py           # web_search + kb_search @tools, MCP client calls
-scripts/
-├── ingest_docs.py     # CLI: ingest docs into Qdrant
-└── smoke_test_mcp.py  # End-to-end smoke test for the MCP server
-infra/
-├── docker-compose.yml # Postgres + Qdrant
-└── .env.example       # Config template
-```
-
-## Smoke test
-
-With the MCP server running:
-
-```bash
+cd apps/mcp-server
 poetry run python scripts/smoke_test_mcp.py
 ```

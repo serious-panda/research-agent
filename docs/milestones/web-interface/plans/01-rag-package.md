@@ -1,6 +1,6 @@
 # Plan 01: RAG Package Extraction
 
-> Source PRD: `docs/prd-monorepo-web.md`
+> Source PRD: `docs/milestones/web-interface/prd-monorepo-web.md`
 
 ## Context
 

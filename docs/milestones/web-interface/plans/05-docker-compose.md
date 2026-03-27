@@ -1,6 +1,6 @@
 # Plan 05: Docker Compose — Demo Mode
 
-> Source PRD: `docs/prd-monorepo-web.md`
+> Source PRD: `docs//milestones/web-interface/prd-monorepo-web.md`
 
 ## Context
 
