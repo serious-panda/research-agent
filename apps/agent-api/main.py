@@ -1,6 +1,7 @@
 import json
 import sys
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Make src/ importable for agent.* and tools
@@ -9,23 +10,24 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from dotenv import load_dotenv
 load_dotenv()
 
+import psycopg
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from agent.graph import stream_graph, POSTGRES_DSN
+from agent.graph import stream_graph, AGENT_POSTGRES_DSN, AGENT_SCHEMA, POSTGRES_DSN
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from tools import get_report, list_reports
 
-app = FastAPI(title="Research Agent API")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with await psycopg.AsyncConnection.connect(POSTGRES_DSN) as conn:
+        await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {AGENT_SCHEMA}")
+    yield
+
+
+app = FastAPI(title="Research Agent API", lifespan=lifespan)
 
 
 class ResearchRequest(BaseModel):
@@ -55,7 +57,7 @@ async def research(body: ResearchRequest) -> StreamingResponse:
 @app.get("/api/research/{thread_id}")
 async def get_research(thread_id: str) -> dict:
     config = {"configurable": {"thread_id": thread_id}}
-    async with AsyncPostgresSaver.from_conn_string(POSTGRES_DSN) as checkpointer:
+    async with AsyncPostgresSaver.from_conn_string(AGENT_POSTGRES_DSN) as checkpointer:
         await checkpointer.setup()
         from agent.graph import _build_compiled_graph
         graph = _build_compiled_graph(checkpointer)

@@ -1,4 +1,5 @@
 import type { SseEvent } from '../types'
+import { getAuthHeaders } from './auth'
 
 export async function* streamResearch(
   question: string,
@@ -6,7 +7,7 @@ export async function* streamResearch(
 ): AsyncGenerator<SseEvent> {
   const response = await fetch('/api/research', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ question }),
     signal,
   })

@@ -26,28 +26,42 @@ services:
     build: { context: apps/mcp-server }
     ports: ["8000:8000"]
     volumes: ["./reports:/app/reports"]
-    environment:
-      REPORTS_DIR: /app/reports
-      MCP_PORT: "8000"
+    env_file: apps/mcp-server/.env.docker
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  server:
+    build:
+      context: apps/server
+    env_file: apps/server/.env.docker
+    environment:
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_USER: ${POSTGRES_USER:-research}
+      DB_DATABASE: ${POSTGRES_DB:-research}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      agent-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e",
+             "fetch('http://localhost:3333/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
   agent-api:
     build:
       context: .
       dockerfile: apps/agent-api/Dockerfile
-    ports: ["8001:8001"]
+    env_file: apps/agent-api/.env.docker
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
-      POSTGRES_DSN: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      QDRANT_URL: http://qdrant:6333
-      MCP_SERVER_URL: http://mcp-server:8000/sse
-      MAX_ITERATIONS: ${MAX_ITERATIONS:-5}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      POSTGRES_DSN: postgresql://${POSTGRES_USER:-research}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-research}
     depends_on:
       postgres:   { condition: service_healthy }
       qdrant:     { condition: service_healthy }
@@ -62,7 +76,7 @@ services:
     build: { context: apps/consumer-web }
     ports: ["3000:80"]
     depends_on:
-      agent-api: { condition: service_healthy }
+      server: { condition: service_healthy }
 
   backoffice:
     build: { context: apps/backoffice }

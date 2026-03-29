@@ -1,6 +1,7 @@
 import os
 import sys
 from collections.abc import AsyncIterator
+from urllib.parse import urlparse, urlencode, parse_qs, urlunparse
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.postgres import PostgresSaver
@@ -11,6 +12,18 @@ from agent.state import ResearchState
 
 POSTGRES_DSN = os.getenv("POSTGRES_DSN")
 MAX_ITERATIONS = int(os.getenv("MAX_ITERATIONS", "5"))
+AGENT_SCHEMA = os.getenv("AGENT_SCHEMA", "agent")
+
+
+def _dsn_with_schema(dsn: str, schema: str) -> str:
+    """Return a copy of the DSN with search_path set to the given schema."""
+    parsed = urlparse(dsn)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+    params["options"] = [f"-csearch_path={schema},public"]
+    return urlunparse(parsed._replace(query=urlencode({k: v[0] for k, v in params.items()})))
+
+
+AGENT_POSTGRES_DSN = _dsn_with_schema(POSTGRES_DSN, AGENT_SCHEMA) if POSTGRES_DSN else None
 
 
 def _route_reflect(state: ResearchState) -> str:
@@ -63,7 +76,7 @@ def run_graph(question: str, thread_id: str) -> str:
     """
     config = {"configurable": {"thread_id": thread_id}}
 
-    with PostgresSaver.from_conn_string(POSTGRES_DSN) as checkpointer:
+    with PostgresSaver.from_conn_string(AGENT_POSTGRES_DSN) as checkpointer:
         checkpointer.setup()  # idempotent DDL — safe to call on every startup
         graph = _build_compiled_graph(checkpointer)
 
@@ -136,7 +149,7 @@ async def stream_graph(question: str, thread_id: str) -> AsyncIterator[dict]:
         "final_answer": None,
     }
 
-    async with AsyncPostgresSaver.from_conn_string(POSTGRES_DSN) as checkpointer:
+    async with AsyncPostgresSaver.from_conn_string(AGENT_POSTGRES_DSN) as checkpointer:
         await checkpointer.setup()
         graph = _build_compiled_graph(checkpointer)
 

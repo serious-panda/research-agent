@@ -1,10 +1,20 @@
 {
   "version": 1,
   "skills": {
+    "adonisjs-best-practices": {
+      "source": "futuregerald/futuregerald-claude-plugin",
+      "sourceType": "github",
+      "computedHash": "41f9ef436a84ab6beb2feaea0ce5ec55b397a0536c82f323dfac26ffedd137a1"
+    },
     "fastapi-python": {
       "source": "mindrally/skills",
       "sourceType": "github",
       "computedHash": "1d7346210a6690d2faeb089f074c0dc20a7056c2c83ac1062a11c1b73158be72"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
     },
     "langchain-rag": {
       "source": "langchain-ai/langchain-skills",

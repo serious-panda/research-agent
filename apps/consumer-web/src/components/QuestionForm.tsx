@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ResearchStatus } from '../types'
+import { PrimaryButton } from './ui/PrimaryButton'
+import { SecondaryButton } from './ui/SecondaryButton'
 
 interface Props {
   status: ResearchStatus
@@ -33,7 +35,7 @@ export default function QuestionForm({ status, onSubmit, onReset }: Props) {
   }
 
   return (
-    <div className="question-form">
+    <div className="flex flex-col gap-3">
       <textarea
         ref={textareaRef}
         value={question}
@@ -43,15 +45,14 @@ export default function QuestionForm({ status, onSubmit, onReset }: Props) {
         rows={3}
         disabled={isRunning}
         autoFocus
+        className="w-full px-4 py-3 border border-slate-200 rounded-lg text-base font-[inherit] resize-y outline-none transition-colors duration-150 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
       />
-      <div className="question-form-actions">
-        <button onClick={handleSubmit} disabled={isRunning || !question.trim()}>
+      <div className="flex gap-3">
+        <PrimaryButton type="button" onClick={handleSubmit} disabled={isRunning || !question.trim()}>
           {isRunning ? 'Researching…' : 'Research'}
-        </button>
+        </PrimaryButton>
         {(status === 'done' || status === 'error') && (
-          <button className="secondary" onClick={onReset}>
-            New question
-          </button>
+          <SecondaryButton type="button" onClick={onReset}>New question</SecondaryButton>
         )}
       </div>
     </div>

@@ -48,23 +48,30 @@ export default function ProgressFeed({ events }: Props) {
   if (rows.length === 0) return null
 
   return (
-    <div className="progress-feed">
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
       {rows.map(row => (
-        <div key={row.key} className={`progress-row ${row.done ? 'done' : 'running'}`}>
-          <span className="progress-icon">
+        <div
+          key={row.key}
+          className={`flex items-start gap-3 px-4 py-2.5 border-b border-slate-200 text-sm last:border-b-0 ${row.done ? 'bg-white' : 'bg-blue-50'}`}
+        >
+          <span className={`w-5 text-center shrink-0 pt-px font-bold ${row.done ? 'text-green-600' : ''}`}>
             {row.done ? '✓' : <span className="spinner" />}
           </span>
-          <div className="progress-content">
-            <span className="progress-label">{rowLabel(row)}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium text-slate-800">{rowLabel(row)}</span>
             {row.node === 'search' && row.done && Array.isArray(row.payload?.tools_called) && (
-              <span className="progress-badges">
+              <span className="flex gap-1">
                 {(row.payload.tools_called as string[]).map(t => (
-                  <span key={t} className="badge">{t === 'web_search' ? 'web' : 'kb'}</span>
+                  <span key={t} className="inline-block px-1.5 py-0.5 rounded-full text-[0.72rem] font-semibold bg-blue-100 text-blue-800">
+                    {t === 'web_search' ? 'web' : 'kb'}
+                  </span>
                 ))}
               </span>
             )}
             {row.node === 'reflect' && row.done && row.payload?.sufficient === false && (
-              <span className="progress-gap">{String(row.payload.gap ?? '')}</span>
+              <span className="text-slate-500 text-[0.82rem] italic">
+                {String(row.payload.gap ?? '')}
+              </span>
             )}
           </div>
         </div>
