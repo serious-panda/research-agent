@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "adonisjs-best-practices": {
+      "source": "futuregerald/futuregerald-claude-plugin",
+      "sourceType": "github",
+      "computedHash": "41f9ef436a84ab6beb2feaea0ce5ec55b397a0536c82f323dfac26ffedd137a1"
+    },
     "fastapi-python": {
       "source": "mindrally/skills",
       "sourceType": "github",

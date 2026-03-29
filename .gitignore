@@ -7,7 +7,7 @@
 .env
 
 # Reports (session-scoped, ephemeral by convention)
-reports/
+/reports/
 
 # Python
 __pycache__/
