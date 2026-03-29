@@ -14,6 +14,12 @@ POSTGRES_DSN = os.getenv("POSTGRES_DSN")
 MAX_ITERATIONS = int(os.getenv("MAX_ITERATIONS", "5"))
 AGENT_SCHEMA = os.getenv("AGENT_SCHEMA", "agent")
 
+EFFORT_CONFIG: dict[str, dict] = {
+    "low":    {"max_iterations": 1, "results_per_query": 3, "max_initial_queries": 2, "estimated_credits": 10},
+    "medium": {"max_iterations": 2, "results_per_query": 5, "max_initial_queries": 3, "estimated_credits": 20},
+    "high":   {"max_iterations": 4, "results_per_query": 8, "max_initial_queries": 5, "estimated_credits": 40},
+}
+
 
 def _dsn_with_schema(dsn: str, schema: str) -> str:
     """Return a copy of the DSN with search_path set to the given schema."""
@@ -28,7 +34,8 @@ AGENT_POSTGRES_DSN = _dsn_with_schema(POSTGRES_DSN, AGENT_SCHEMA) if POSTGRES_DS
 
 def _route_reflect(state: ResearchState) -> str:
     """Route to search if more queries remain, otherwise to synthesize."""
-    if state["queries"] and state["iteration"] < MAX_ITERATIONS:
+    max_iter = state.get("max_iterations", MAX_ITERATIONS)
+    if state["queries"] and state["iteration"] < max_iter:
         return "search"
     return "synthesize"
 
@@ -135,9 +142,10 @@ def _node_payload(node: str, data: dict) -> dict:
     return {}
 
 
-async def stream_graph(question: str, thread_id: str) -> AsyncIterator[dict]:
+async def stream_graph(question: str, thread_id: str, effort: str = "high") -> AsyncIterator[dict]:
     """Async generator that streams node-level events as the graph runs."""
     config = {"configurable": {"thread_id": thread_id}}
+    cfg = EFFORT_CONFIG.get(effort, EFFORT_CONFIG["high"])
     initial: ResearchState = {
         "question": question,
         "kind": "research",
@@ -147,6 +155,11 @@ async def stream_graph(question: str, thread_id: str) -> AsyncIterator[dict]:
         "reflections": [],
         "iteration": 0,
         "final_answer": None,
+        "max_iterations": cfg["max_iterations"],
+        "results_per_query": cfg["results_per_query"],
+        "max_initial_queries": cfg["max_initial_queries"],
+        "searches_done": 0,
+        "links_evaluated": 0,
     }
 
     async with AsyncPostgresSaver.from_conn_string(AGENT_POSTGRES_DSN) as checkpointer:
@@ -175,9 +188,15 @@ async def stream_graph(question: str, thread_id: str) -> AsyncIterator[dict]:
         final = await graph.aget_state(config)
         values = final.values
         sources = [r["href"] for r in values.get("search_results", []) if r.get("href")]
+        links = values.get("links_evaluated", 0)
         yield {
             "event": "done",
             "answer": values.get("final_answer", ""),
             "sources": sources,
             "thread_id": thread_id,
+            "usage": {
+                "searches": values.get("searches_done", 0),
+                "links": links,
+                "credits": links,
+            },
         }

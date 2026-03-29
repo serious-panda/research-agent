@@ -34,4 +34,8 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   // Internal services
   AGENT_API_URL: Env.schema.string({ format: 'url', tld: false }),
+
+  // Quota limits (optional — defaults applied in quota_service)
+  DAILY_QUOTA_CREDITS: Env.schema.number.optional(),
+  HOURLY_QUOTA_CREDITS: Env.schema.number.optional(),
 })

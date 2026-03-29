@@ -27,17 +27,21 @@ def web_search(query: str) -> list[dict]:
     return _ddg_search(query, max_results=5)
 
 
+def _kb_search(query: str, top_k: int = 5) -> list[dict]:
+    try:
+        from rag.store import search_documents
+        return search_documents(query, top_k=top_k)
+    except Exception as exc:
+        logger.warning("kb_search failed: %s", exc)
+        return []
+
+
 @tool
 def kb_search(query: str) -> list[dict]:
     """Search the local knowledge base of ingested documents.
     Use for domain-specific questions about topics covered in the knowledge base
     (e.g. React docs, internal architecture docs)."""
-    try:
-        from rag.store import search_documents
-        return search_documents(query, top_k=5)
-    except Exception as exc:
-        logger.warning("kb_search failed: %s", exc)
-        return []
+    return _kb_search(query, top_k=5)
 
 
 SEARCH_TOOLS = [web_search, kb_search]
