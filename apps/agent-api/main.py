@@ -33,6 +33,7 @@ app = FastAPI(title="Research Agent API", lifespan=lifespan)
 class ResearchRequest(BaseModel):
     question: str
     thread_id: str | None = None
+    effort: str = "high"   # "low" | "medium" | "high"
 
 
 @app.get("/health")
@@ -46,7 +47,7 @@ async def research(body: ResearchRequest) -> StreamingResponse:
 
     async def generate():
         try:
-            async for event in stream_graph(body.question, thread_id):
+            async for event in stream_graph(body.question, thread_id, effort=body.effort):
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:
             yield f"data: {json.dumps({'event': 'error', 'message': str(exc)})}\n\n"

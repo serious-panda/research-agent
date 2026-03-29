@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from agent.state import ResearchState
-from tools import SEARCH_TOOLS, save_report, web_search, kb_search
+from tools import SEARCH_TOOLS, save_report, _ddg_search, _kb_search
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +58,14 @@ class _QueryPlan(BaseModel):
 def plan(state: ResearchState) -> dict:
     """Decompose the research question into a list of search queries."""
     logger.info("[plan] question=%r", state["question"])
+    max_q = state.get("max_initial_queries", 5)
     result: _QueryPlan = _llm().with_structured_output(_QueryPlan).invoke([
         {
             "role": "system",
             "content": (
-                "You are a research planner. Given a question, produce a list of "
-                "focused web search queries that together will answer it thoroughly. "
-                "Return 3-5 queries."
+                "You are a research planner. Given a question, produce a focused list of "
+                f"web search queries. Return at most {max_q} queries — prefer fewer "
+                "high-quality queries over many redundant ones."
             ),
         },
         {"role": "user", "content": state["question"]},
@@ -75,8 +76,9 @@ def plan(state: ResearchState) -> dict:
 
 def search(state: ResearchState) -> dict:
     """Execute the next pending query; LLM picks web_search, kb_search, or both."""
+    n = state.get("results_per_query", 8)
     query, *remaining = state["queries"]
-    logger.info("[search] iteration=%d query=%r", state["iteration"], query)
+    logger.info("[search] iteration=%d query=%r results_per_query=%d", state["iteration"], query, n)
 
     llm = _llm().bind_tools(SEARCH_TOOLS)
     response = llm.invoke([
@@ -93,23 +95,24 @@ def search(state: ResearchState) -> dict:
     for tc in response.tool_calls:
         logger.info("[search] tool_call=%s args=%r", tc["name"], tc["args"])
         if tc["name"] == "web_search":
-            web_results.extend(web_search.invoke(tc["args"]))
+            web_results.extend(_ddg_search(tc["args"]["query"], max_results=n))
         elif tc["name"] == "kb_search":
-            new_kb_results.extend(kb_search.invoke(tc["args"]))
+            new_kb_results.extend(_kb_search(tc["args"]["query"], top_k=n))
 
     # Fallback: if LLM called no tools, run web search directly
     if not response.tool_calls:
         logger.warning("[search] no tool calls from LLM, falling back to web_search")
-        web_results = web_search.invoke({"query": query})
+        web_results = _ddg_search(query, max_results=n)
 
-    logger.info(
-        "[search] web_results=%d kb_results=%d remaining_queries=%d",
-        len(web_results), len(new_kb_results), len(remaining),
-    )
+    fetched = len(web_results) + len(new_kb_results)
+    logger.info("[search] web=%d kb=%d fetched=%d remaining_queries=%d",
+                len(web_results), len(new_kb_results), fetched, len(remaining))
     return {
         "queries": remaining,
         "search_results": state["search_results"] + web_results,
         "kb_results": state.get("kb_results", []) + new_kb_results,
+        "searches_done": state.get("searches_done", 0) + 1,
+        "links_evaluated": state.get("links_evaluated", 0) + fetched,
     }
 
 

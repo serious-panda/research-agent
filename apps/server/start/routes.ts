@@ -15,6 +15,7 @@ const NewAccountController = () => import('#auth/controllers/new_account_control
 const ProfileController = () => import('#auth/controllers/profile_controller')
 const ResearchController = () => import('#research/controllers/research_controller')
 const ReportsController = () => import('#reports/controllers/reports_controller')
+const UsageController = () => import('#research/controllers/usage_controller')
 
 router.get('/health', () => {
   return { status: 'ok' }
@@ -35,6 +36,9 @@ router
     // Research proxy routes
     router.post('research', [ResearchController, 'stream']).use(middleware.auth())
     router.get('research/:id', [ResearchController, 'show']).use(middleware.auth())
+
+    // Usage / quota status
+    router.get('usage', [UsageController, 'show']).use(middleware.auth())
 
     // Reports proxy routes
     router.get('reports', [ReportsController, 'index']).use(middleware.auth())
