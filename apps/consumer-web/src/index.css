@@ -1,229 +1,49 @@
 @import "tailwindcss";
 
-/* ── design tokens (auth pages + Tailwind theme) ── */
-@theme {
-  --color-surface:  #faf9f7;
-  --color-ink:      #1a1a1a;
-  --color-muted:    #9a9a8e;
-  --color-accent:   #c8a96e;
-  --color-border:   #d4d2cc;
-
-  --font-serif: 'Playfair Display', Georgia, serif;
-  --font-sans:  system-ui, -apple-system, sans-serif;
+@layer base {
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
 }
 
-/* ── auth page entrance animation ── */
+/* ── auth page entrance ── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── research UI (unchanged) ── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --surface: #f8fafc;
-  --border: #e2e8f0;
-  --text: #0f172a;
-  --text-muted: #64748b;
-  --done-color: #16a34a;
-  --running-color: #2563eb;
-  --radius: 8px;
-  font-family: system-ui, -apple-system, sans-serif;
-  color: var(--text);
-  background: var(--surface);
-}
-
-.app {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.app-header {
-  margin-bottom: 2rem;
-}
-
-.app-header h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin-bottom: 0.4rem;
-}
-
-.app-header p {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-}
-
-.app-main {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-/* Question form */
-.question-form { display: flex; flex-direction: column; gap: 0.75rem; }
-
-textarea {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 1rem;
-  font-family: inherit;
-  resize: vertical;
-  outline: none;
-  transition: border-color 0.15s;
-}
-textarea:focus { border-color: var(--accent); }
-textarea:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.question-form-actions { display: flex; gap: 0.75rem; }
-
-button {
-  padding: 0.6rem 1.25rem;
-  border: none;
-  border-radius: var(--radius);
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--accent);
-  color: #fff;
-  transition: background 0.15s;
-}
-button:hover:not(:disabled) { background: var(--accent-hover); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-button.secondary {
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--border);
-}
-button.secondary:hover:not(:disabled) { background: var(--border); }
-
-/* Progress feed */
-.progress-feed {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.progress-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.65rem 1rem;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.9rem;
-}
-.progress-row:last-child { border-bottom: none; }
-.progress-row.running { background: #eff6ff; }
-.progress-row.done { background: #fff; }
-
-.progress-icon {
-  width: 1.25rem;
-  text-align: center;
-  flex-shrink: 0;
-  padding-top: 1px;
-}
-.progress-row.done .progress-icon { color: var(--done-color); font-weight: 700; }
-
-.progress-content {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-.progress-label { font-weight: 500; }
-.progress-gap { color: var(--text-muted); font-size: 0.82rem; font-style: italic; }
-
-.badge {
-  display: inline-block;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-/* Spinner */
+/* ── spinner ── */
 .spinner {
   display: inline-block;
   width: 14px;
   height: 14px;
   border: 2px solid #bfdbfe;
-  border-top-color: var(--running-color);
+  border-top-color: #2563eb;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   vertical-align: middle;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Answer card */
-.answer-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  background: #fff;
-}
-.answer-card h2 {
-  font-size: 1rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 1rem;
-}
+/* ── markdown answer body ── */
 .answer-body { line-height: 1.7; }
+.answer-body a { color: #2563eb; text-decoration: underline; }
 .answer-body h1, .answer-body h2, .answer-body h3 {
   margin: 1.25rem 0 0.5rem;
   font-size: 1.05rem;
-  color: var(--text);
+  font-weight: 600;
+  color: #0f172a;
 }
 .answer-body p { margin-bottom: 0.75rem; }
 .answer-body ul, .answer-body ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
 .answer-body li { margin-bottom: 0.25rem; }
 .answer-body code {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 4px;
   padding: 0.1em 0.35em;
   font-size: 0.88em;
 }
 .answer-body pre code { display: block; padding: 0.75rem; overflow-x: auto; }
-
-/* Source list */
-.source-list {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.25rem 1.5rem;
-  background: #fff;
-}
-.source-list h3 {
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 0.75rem;
-}
-.source-list ol { padding-left: 1.25rem; }
-.source-list li { margin-bottom: 0.4rem; font-size: 0.85rem; }
-.source-list a { color: var(--accent); word-break: break-all; }
-.source-list a:hover { text-decoration: underline; }
-
-/* Error card */
-.error-card {
-  padding: 1rem 1.25rem;
-  border: 1px solid #fecaca;
-  border-radius: var(--radius);
-  background: #fef2f2;
-  color: #991b1b;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}

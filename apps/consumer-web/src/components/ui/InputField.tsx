@@ -10,26 +10,15 @@ export function InputField({ label, error, id, ...inputProps }: Props) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label
-        htmlFor={fieldId}
-        className="text-xs font-medium tracking-widest uppercase text-[--color-muted]"
-      >
+      <label htmlFor={fieldId} className="text-sm font-medium text-slate-700">
         {label}
       </label>
       <input
         id={fieldId}
-        className="
-          border-0 border-b border-[--color-border] bg-transparent
-          py-2.5 text-sm text-[--color-ink] placeholder:text-[--color-muted]
-          outline-none transition-colors duration-150
-          focus:border-[--color-accent]
-          disabled:opacity-40 disabled:cursor-not-allowed
-        "
+        className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors duration-150 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed"
         {...inputProps}
       />
-      {error && (
-        <p className="text-xs text-red-500">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   )
 }
